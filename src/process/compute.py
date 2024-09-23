@@ -176,13 +176,15 @@ def merge_beat_elements(df: pd.DataFrame):
     :return:
     """
     hands = [df.loc[df['_type'] == x]
-                 .drop_duplicates('_time', 'last')
+                 #.drop_duplicates('_time', 'last')
+                 .drop_duplicates('_time', keep='last')
                  .set_index('_time')
                  .drop(columns='_type')
              for x, hand in [[0, 'l'], [1, 'r']]]
     for hand in [0, 1]:
         not_in = hands[hand - 1].index.difference(hands[hand].index)
-        hands[hand] = hands[hand].append(hands[hand - 1].loc[not_in])
+        #hands[hand] = hands[hand].append(hands[hand - 1].loc[not_in])
+        hands[hand] = pd.concat([hands[hand], (hands[hand - 1].loc[not_in])])
     hands = [x.add_prefix(hand) for x, hand in zip(hands, ['l', 'r'])]
     out_df = pd.concat(hands, axis=1)
     return out_df
