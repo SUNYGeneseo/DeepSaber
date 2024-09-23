@@ -233,7 +233,7 @@ def baseline_model(seq: BeatmapSequence, stateful, config: Config) -> Model:
     else:
         model = AVSModel(inputs=inputs, outputs=outputs, config=config)
 
-    opt = keras.optimizers.Adam(lr=config.training.initial_learning_rate)
+    opt = keras.optimizers.legacy.Adam(lr=config.training.initial_learning_rate)
 
     model.compile(
         optimizer=opt,
@@ -285,7 +285,7 @@ def ddc_model(seq: BeatmapSequence, stateful, config: Config) -> Model:
     else:
         model = AVSModel(inputs=inputs, outputs=outputs, config=config)
 
-    opt = keras.optimizers.Adam(lr=config.training.initial_learning_rate, clipnorm=5.0)
+    opt = keras.optimizers.legacy.Adam(lr=config.training.initial_learning_rate, clipnorm=5.0)
 
     model.compile(
         optimizer=opt,
@@ -366,7 +366,7 @@ def custom_model(seq: BeatmapSequence, stateful, config: Config) -> Model:
             logging.log(logging.WARNING, f'Not using AVSModel with superior optimizer due to '
                                          f'{config.training.AVS_proxy_ratio=}.')
         model = Model(inputs=inputs, outputs=outputs)
-        opt = keras.optimizers.Adam()
+        opt = keras.optimizers.legacy.Adam()
     else:
         model = AVSModel(inputs=inputs, outputs=outputs, config=config)
 
@@ -504,7 +504,7 @@ def clstm_tuning_model(seq: BeatmapSequence, stateful, config: Config) -> Model:
                 logging.log(logging.WARNING, f'Not using AVSModel with superior optimizer due to '
                                              f'{config.training.AVS_proxy_ratio=}.')
             model = Model(inputs=inputs, outputs=outputs)
-            opt = keras.optimizers.Adam()
+            opt = keras.optimizers.legacy.Adam()
         else:
             model = AVSModel(inputs=inputs, outputs=outputs, config=config)
 
@@ -583,7 +583,7 @@ def multi_lstm_tuning_model(seq: BeatmapSequence, stateful, config: Config) -> M
                 logging.log(logging.WARNING, f'Not using AVSModel with superior optimizer due to '
                                              f'{config.training.AVS_proxy_ratio=}.')
             model = Model(inputs=inputs, outputs=outputs)
-            opt = keras.optimizers.Adam()
+            opt = keras.optimizers.legacy.Adam()
         else:
             if use_avs_model:
                 model = AVSModel(inputs=inputs, outputs=outputs, config=config)
@@ -648,7 +648,7 @@ def trivial_tuning_model(seq: BeatmapSequence, stateful, config: Config) -> Call
             logging.log(logging.WARNING, f'Not using AVSModel with superior optimizer due to '
                                          f'{config.training.AVS_proxy_ratio=}.')
         model = Model(inputs=inputs, outputs=outputs)
-        opt = keras.optimizers.Adam()
+        opt = keras.optimizers.legacy.Adam()
 
         model.compile(
             optimizer=opt,
@@ -662,7 +662,8 @@ def trivial_tuning_model(seq: BeatmapSequence, stateful, config: Config) -> Call
 
 
 def save_model(model, model_path, train_seq, config, hp: Optional[kt.HyperParameters] = None):
-    keras.mixed_precision.experimental.set_policy('float32')
+    #keras.mixed_precision.experimental.set_policy('float32')
+    # warden: the default is already float32
     config.training.batch_size = 1
     stateful_model = get_architecture_fn(config)(train_seq, True, config)
     if hp is not None:
