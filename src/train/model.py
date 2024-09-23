@@ -12,7 +12,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from tensorflow.python.eager import backprop
 from tensorflow.python.keras.engine import data_adapter
-from tensorflow.python.keras.engine.training import _minimize
+#from tensorflow.python.keras.engine.training import _minimize
 from tensorflow.python.ops import embedding_ops
 
 from train import metrics
@@ -84,6 +84,8 @@ class AVSModel(Model):
         metrics: List = super(AVSModel, self).metrics
         return metrics + list(self.vector_metrics.values()) + list(self.id_metrics.values())
 
+    # warden: it looks like they subclassed this so they could update_metrics() here with
+    # data not returned from parent train_step()
     def train_step(self, data):
         data = data_adapter.expand_1d(data)
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
@@ -91,8 +93,12 @@ class AVSModel(Model):
         with backprop.GradientTape() as tape:
             y_pred = self(x, training=True)
             loss = self.compiled_loss(y, y_pred, sample_weight, regularization_losses=self.losses)
+        '''
+        warden: reimplement with official train_step
         _minimize(self.distribute_strategy, tape, self.optimizer, loss,
                   self.trainable_variables)
+        '''
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
 
         self.update_metrics(y_pred, y, sample_weight, train=True)
 
