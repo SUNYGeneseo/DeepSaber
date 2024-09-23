@@ -2,6 +2,7 @@ import math
 
 from tensorflow import keras
 from tensorflow.python.framework import ops, constant_op
+from tensorflow.python.framework.tensor_conversion import convert_to_tensor_v2
 from tensorflow.python.ops import math_ops
 from tensorflow.python.util.tf_export import keras_export
 
@@ -46,7 +47,8 @@ class FlatCosAnnealSchedule(keras.experimental.CosineDecay):
 
     def __call__(self, step):
         with ops.name_scope_v2(self.name or "FlatCosAnnealSchedule"):
-            initial_learning_rate = ops.convert_to_tensor_v2(
+            #initial_learning_rate = ops.convert_to_tensor_v2(
+            initial_learning_rate = convert_to_tensor_v2(
                 self.initial_learning_rate, name="initial_learning_rate")
             dtype = initial_learning_rate.dtype
             decay_start = math_ops.cast(self.decay_start, dtype)
