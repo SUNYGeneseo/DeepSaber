@@ -5,7 +5,9 @@ import random
 
 import numpy as np
 import tensorflow as tf
-import tensorflow_addons as tfa
+# warden: tfa is only used for mish, which
+# can be replaced with tf.keras.activationas.mish
+#import tensorflow_addons as tfa
 from tensorflow import keras
 
 from predict.api import generate_complete_beatmaps
@@ -48,8 +50,10 @@ def main():
     timer('Loaded datasets', 5)
 
     # Ensure this song is excluded from the training data for hand tasting
-    train.drop(index='133b', inplace=True, errors='ignore')
-    train.drop(index='Daddy - PSY', inplace=True, errors='ignore')
+    #train.drop(index='133b', inplace=True, errors='ignore')
+    #train.drop(index='Daddy - PSY', inplace=True, errors='ignore')
+    train.drop(index='417c', inplace=True, errors='ignore')
+    train.drop(index='Butterfly DDRMIX - LittleAsi', inplace=True, errors='ignore')
     dataset_stats(train)
 
     train_seq = BeatmapSequence(df=train, is_train=True, config=config)
@@ -71,14 +75,18 @@ def main():
 
         callbacks = create_callbacks(train_seq, config)
 
+        # warden: seems like we really need to compile the model?
+        #model.compile()
+
         model.fit(train_seq,
                   validation_data=val_seq,
                   callbacks=callbacks,
                   epochs=400,
                   verbose=2,
-                  workers=10,
-                  max_queue_size=16,
-                  use_multiprocessing=False,
+                  # warden: tf 2.16 doesn't have the following
+                  #workers=10,
+                  #max_queue_size=16,
+                  #use_multiprocessing=False,
                   )
         timer('Trained model', 5)
         model.evaluate(test_seq)
@@ -88,13 +96,15 @@ def main():
         timer('Saved model', 5)
 
     stateful_model = keras.models.load_model(model_path / 'stateful_model.keras',
-                                             custom_objects={'Perplexity': Perplexity, 'mish': tfa.activations.mish})
+                                             #custom_objects={'Perplexity': Perplexity, 'mish': tfa.activations.mish})
+                                             custom_objects={'Perplexity': Perplexity, 'mish': keras.activations.mish})
     stateful_model.summary()
     timer('Loaded stateful model', 5)
 
     # Use generated action placement
     input_folder = base_folder / 'evaluation_dataset' / 'beat_sage'
     input_folder = base_folder / 'evaluation_dataset' / 'oxai_deepsaber_expert'
+    input_folder = base_folder / 'evaluation_dataset' / 'custom_levels'
     output_folder = base_folder / 'testing' / 'generated_songs'
     dirs = [x for x in input_folder.glob('*/') if x.is_dir()]
 

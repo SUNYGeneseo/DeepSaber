@@ -176,13 +176,17 @@ def merge_beat_elements(df: pd.DataFrame):
     :return:
     """
     hands = [df.loc[df['_type'] == x]
-                 .drop_duplicates('_time', 'last')
+                # warden: pandas warning
+                 #.drop_duplicates('_time', 'last')
+                 .drop_duplicates('_time', keep='last')
                  .set_index('_time')
                  .drop(columns='_type')
              for x, hand in [[0, 'l'], [1, 'r']]]
     for hand in [0, 1]:
         not_in = hands[hand - 1].index.difference(hands[hand].index)
-        hands[hand] = hands[hand].append(hands[hand - 1].loc[not_in])
+        # warden: pandas deprecated frame.append
+        #hands[hand] = hands[hand].append(hands[hand - 1].loc[not_in])
+        hands[hand] = pd.concat([hands[hand], (hands[hand - 1].loc[not_in])])
     hands = [x.add_prefix(hand) for x, hand in zip(hands, ['l', 'r'])]
     out_df = pd.concat(hands, axis=1)
     return out_df
@@ -217,7 +221,9 @@ def process_song_folder(folder, config: Config, order=(0, 1)):
     for dirpath, dirnames, filenames in os.walk(folder):
         files.extend(filenames)
         break
-    info_path = os.path.join(folder, [x for x in files if 'info' in x.lower()][0])
+    # warden: my infos end in .dat
+    #info_path = os.path.join(folder, [x for x in files if 'info' in x.lower()][0])
+    info_path = os.path.join(folder, [x for x in files if 'info.dat' in x.lower()][0])
     file_ogg = os.path.join(folder, [x for x in files if x.endswith('gg')][0])
     folder_name = folder.split('/')[-1]
     df_difficulties = []
@@ -229,7 +235,9 @@ def process_song_folder(folder, config: Config, order=(0, 1)):
         return None
 
     for difficulty in ['Easy', 'Normal', 'Hard', 'Expert', 'ExpertPlus']:
-        beatmap_path = [x for x in files if difficulty in x]
+        # warden: my beatmaps are named differently
+        #beatmap_path = [x for x in files if difficulty in x]
+        beatmap_path = [x for x in files if x == f'{difficulty}.dat']
         if beatmap_path:
             try:
                 beatmap_path = os.path.join(folder, beatmap_path[0])

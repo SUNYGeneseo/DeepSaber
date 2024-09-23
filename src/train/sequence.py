@@ -45,7 +45,9 @@ class BeatmapSequence(Sequence):
             if col in self.categorical_cols:  # to categorical
                 num_classes = [num for ending, num in self.config.dataset.num_classes.items() if col.endswith(ending)][
                     0]
-                data_dict[col] = keras.utils.to_categorical(data_dict[col], num_classes, dtype='float32')
+                #data_dict[col] = keras.utils.to_categorical(data_dict[col], num_classes, dtype='float32')
+                # warden: dtype argument removed from tf at some point
+                data_dict[col] = keras.utils.to_categorical(data_dict[col], num_classes)
 
         if self.is_train and self.config.training.mixup_alpha >= 1e-4:  # Mixup: https://arxiv.org/pdf/1710.09412.pdf
             size = min(self.num_snippets, (idx + 1) * self.batch_size) - idx * self.batch_size

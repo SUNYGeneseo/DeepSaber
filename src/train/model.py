@@ -6,13 +6,16 @@ import gensim
 import kerastuner as kt
 import numpy as np
 import tensorflow as tf
-import tensorflow_addons as tfa
+# warden: tfa is only used for mish and others, which
+# can be replaced with keras.activationas.mish and others
+#import tensorflow_addons as tfa
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from tensorflow.python.eager import backprop
 from tensorflow.python.keras.engine import data_adapter
-from tensorflow.python.keras.engine.training import _minimize
+#from tensorflow.python.keras.engine.training import _minimize
+from train.diy import _minimize
 from tensorflow.python.ops import embedding_ops
 
 from train import metrics
@@ -79,10 +82,13 @@ class AVSModel(Model):
                                                                self.word_model.vectors]))  # 0: MASK, 1: UNK
         self.normed_embeddings = tf.nn.l2_normalize(self.embeddings, axis=-1)
 
+    '''
+    warden: trying to simplify metrics
     @property
     def metrics(self) -> List:
         metrics: List = super(AVSModel, self).metrics
         return metrics + list(self.vector_metrics.values()) + list(self.id_metrics.values())
+    '''
 
     def train_step(self, data):
         data = data_adapter.expand_1d(data)
@@ -91,10 +97,11 @@ class AVSModel(Model):
         with backprop.GradientTape() as tape:
             y_pred = self(x, training=True)
             loss = self.compiled_loss(y, y_pred, sample_weight, regularization_losses=self.losses)
+            print(f'loss is {loss}')
         _minimize(self.distribute_strategy, tape, self.optimizer, loss,
                   self.trainable_variables)
 
-        self.update_metrics(y_pred, y, sample_weight, train=True)
+        self.compute_metrics(x, y_pred, y, sample_weight, train=True)
 
         return self.get_metrics_dict()
 
@@ -106,7 +113,7 @@ class AVSModel(Model):
         self.compiled_loss(
             y, y_pred, sample_weight, regularization_losses=self.losses)
 
-        self.update_metrics(y_pred, y, sample_weight)
+        self.compute_metrics(x, y_pred, y, sample_weight)
 
         return self.get_metrics_dict()
 
@@ -116,10 +123,22 @@ class AVSModel(Model):
     def get_config(self):
         super(AVSModel, self).get_config()
 
-    def update_metrics(self, y_pred, y, sample_weight, train=False):
+    def compute_metrics(self, x, y_pred, y, sample_weight, train=False):
         """ Compute all possible action representations to enable all metrics """
-        self.compiled_metrics.update_state(y, y_pred, sample_weight)
+        #print(f'warden: compiled metrics are {dir(self.compiled_metrics)}')
+        #print(f'warden: metrics are {list(m for m in self.metrics)}')
+        print(f'warden: super metrics are {super(AVSModel, self).metrics}')
+        print(f'vector_metrics: {self.vector_metrics}, id_metrics: {self.id_metrics}')
+        print(f'x: {x}, y_pred {y_pred}, y {y}, sample_weight {sample_weight}, train {train}')
+        #self.compiled_metrics.update_state(y=y, y_pred=y_pred, sample_weight=sample_weight)
+        # above is deprecated, tf says to do following:
+        #for metric in self.compiled_metrics:
+        #    print(f'updating metric {metric} with y is {y} and y_pred is {y_pred}')
+        #    metric.update_state(y, y_pred))
+        # remember, this is where self.metrics come from: metrics: List = super(AVSModel, self).metrics
+        #metric_results = super().compute_metrics(x, y, y_pred, sample_weight)
 
+        # now compute custom metrics?
         if 'word_vec' in y.keys() and 'word_id' not in y.keys():
             y['word_id'] = self.word_vec2word(drop_batch(y['word_vec']))
             y_pred['word_id'] = self.word_vec2word(drop_batch(y_pred['word_vec']))
@@ -138,7 +157,9 @@ class AVSModel(Model):
                 metric.update_state(flatten_y, flatten_y_pred)
 
     def get_metrics_dict(self):
-        metrics = {m.name: m.result() for m in self.metrics}
+        #metrics = {m.name: m.result() for m in super(AVSModel, self).metrics}
+        #metrics = dict((name, metric) for (name, metric) in list(self.vector_metrics.items()) + list(self.id_metrics.items()))
+        metrics = {}
         return metrics
 
     def word2word_vec(self, word):
@@ -312,7 +333,7 @@ def custom_model(seq: BeatmapSequence, stateful, config: Config) -> Model:
             for _ in range(config.training.cnn_repetition):
                 per_stream[col] = layers.concatenate(inputs=[layers.Conv1D(filters=basic_block_size // (s - 2),
                                                                            kernel_size=s,
-                                                                           activation=tfa.activations.mish,
+                                                                           activation=keras.activations.mish,
                                                                            padding='causal',
                                                                            kernel_initializer='lecun_normal',
                                                                            name=names.__next__())(per_stream[col])
@@ -335,7 +356,7 @@ def custom_model(seq: BeatmapSequence, stateful, config: Config) -> Model:
         if i > 0:
             x = layers.Dropout(dropout)(x)
         x = layers.TimeDistributed(
-            layers.Dense(basic_block_size, activation=tfa.activations.mish, name=names.__next__(),
+            layers.Dense(basic_block_size, activation=keras.activations.mish, name=names.__next__(),
                          kernel_regularizer=keras.regularizers.l2(config.training.l2_regularization), ),
             name=names.__next__())(x)
 
@@ -378,11 +399,11 @@ def custom_model(seq: BeatmapSequence, stateful, config: Config) -> Model:
                                             decay_steps=len(seq) * 28 + 400,
                                             alpha=0.01, )
         # Ranger hyper params based on https://github.com/fastai/imagenette/blob/master/2020-01-train.md
-        opt = tfa.optimizers.RectifiedAdam(learning_rate=lr_schedule,
+        opt = tf.keras.optimizers.Adam(learning_rate=lr_schedule,
                                            beta_1=0.95,
                                            beta_2=0.99,
                                            epsilon=1e-6)
-        opt = tfa.optimizers.Lookahead(opt, sync_period=6, slow_step_size=0.5)
+        #opt = tfa.optimizers.Lookahead(opt, sync_period=6, slow_step_size=0.5)
 
     model.compile(
         optimizer=opt,
@@ -402,7 +423,7 @@ def clstm_tuning_model(seq: BeatmapSequence, stateful, config: Config) -> Model:
         per_stream = {}
         cnn_activation = {'relu': keras.activations.relu,
                           'elu': keras.activations.elu,
-                          'mish': tfa.activations.mish}[hp.Choice('cnn_activation', ['relu', 'mish'])]
+                          'mish': keras.activations.mish}[hp.Choice('cnn_activation', ['relu', 'mish'])]
 
         cat_cnn_repetition = hp.Int('cat_cnn_repetition', 0, 4)
         cnn_spatial_dropout = hp.Float('spatial_dropout', 0.0, 0.5)
@@ -511,11 +532,11 @@ def clstm_tuning_model(seq: BeatmapSequence, stateful, config: Config) -> Model:
                                                 decay_steps=len(seq) * decay_end_epoch,
                                                 alpha=0.001, )
             # Ranger hyper params based on https://github.com/fastai/imagenette/blob/master/2020-01-train.md
-            opt = tfa.optimizers.RectifiedAdam(learning_rate=lr_schedule,
+            opt = keras.optimizers.Adam(learning_rate=lr_schedule,
                                                beta_1=0.95,
                                                beta_2=0.99,
                                                epsilon=1e-6)
-            opt = tfa.optimizers.Lookahead(opt, sync_period=6, slow_step_size=0.5)
+            #opt = tfa.optimizers.Lookahead(opt, sync_period=6, slow_step_size=0.5)
 
         model.compile(
             optimizer=opt,
@@ -590,11 +611,11 @@ def multi_lstm_tuning_model(seq: BeatmapSequence, stateful, config: Config) -> M
                                                 decay_steps=len(seq) * 40,
                                                 alpha=0.01, )
             # Ranger hyper params based on https://github.com/fastai/imagenette/blob/master/2020-01-train.md
-            opt = tfa.optimizers.RectifiedAdam(learning_rate=lr_schedule,
+            opt = keras.optimizers.Adam(learning_rate=lr_schedule,
                                                beta_1=0.95,
                                                beta_2=0.99,
                                                epsilon=1e-6)
-            opt = tfa.optimizers.Lookahead(opt, sync_period=6, slow_step_size=0.5)
+            #opt = tfa.optimizers.Lookahead(opt, sync_period=6, slow_step_size=0.5)
 
         model.compile(
             optimizer=opt,
