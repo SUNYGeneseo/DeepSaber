@@ -48,8 +48,8 @@ def main():
     timer('Loaded datasets', 5)
 
     # Ensure this song is excluded from the training data for hand tasting
-    train.drop(index='133b', inplace=True, errors='ignore')
-    train.drop(index='Daddy - PSY', inplace=True, errors='ignore')
+    train.drop(index='417c', inplace=True, errors='ignore')
+    train.drop(index='Butterfly DDRMIX - LittleAsi', inplace=True, errors='ignore')
     dataset_stats(train)
 
     train_seq = BeatmapSequence(df=train, is_train=True, config=config)
@@ -64,30 +64,29 @@ def main():
     model_path = base_folder / 'temp'
     model_path.mkdir(parents=True, exist_ok=True)
 
-    with tf.device('/cpu:0'):
-        train = True
-        if train:
-            model = get_architecture_fn(config)(train_seq, False, config)
-            model.summary()
+    train = True
+    if train:
+        model = get_architecture_fn(config)(train_seq, False, config)
+        model.summary()
 
-            callbacks = create_callbacks(train_seq, config)
+        callbacks = create_callbacks(train_seq, config)
 
-            model.fit(train_seq,
-                    validation_data=val_seq,
-                    callbacks=callbacks,
-                    epochs=400,
-                    verbose=2,
-                    workers=10,
-                    max_queue_size=16,
-                    use_multiprocessing=False,
-                    #use_multiprocessing=True,
-                    )
-            timer('Trained model', 5)
-            model.evaluate(test_seq)
-            timer('Evaluated model', 5)
+        model.fit(train_seq,
+                validation_data=val_seq,
+                callbacks=callbacks,
+                epochs=400,
+                verbose=2,
+                workers=10,
+                max_queue_size=16,
+                use_multiprocessing=False,
+                #use_multiprocessing=True,
+                )
+        timer('Trained model', 5)
+        model.evaluate(test_seq)
+        timer('Evaluated model', 5)
 
-            save_model(model, model_path, train_seq, config)
-            timer('Saved model', 5)
+        save_model(model, model_path, train_seq, config)
+        timer('Saved model', 5)
 
     stateful_model = keras.models.load_model(model_path / 'stateful_model.keras',
                                              custom_objects={'Perplexity': Perplexity, 'mish': tfa.activations.mish})
@@ -97,6 +96,7 @@ def main():
     # Use generated action placement
     input_folder = base_folder / 'evaluation_dataset' / 'beat_sage'
     input_folder = base_folder / 'evaluation_dataset' / 'oxai_deepsaber_expert'
+    input_folder = base_folder / 'evaluation_dataset' / 'davetest'
     output_folder = base_folder / 'testing' / 'generated_songs'
     dirs = [x for x in input_folder.glob('*/') if x.is_dir()]
 
