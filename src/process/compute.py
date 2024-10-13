@@ -219,7 +219,7 @@ def process_song_folder(folder, config: Config, order=(0, 1)):
     for dirpath, dirnames, filenames in os.walk(folder):
         files.extend(filenames)
         break
-    info_path = os.path.join(folder, [x for x in files if 'info' in x.lower()][0])
+    info_path = os.path.join(folder, [x for x in files if 'info.dat' == x.lower()][0])
     file_ogg = os.path.join(folder, [x for x in files if x.endswith('gg')][0])
     folder_name = folder.split('/')[-1]
     df_difficulties = []
@@ -231,7 +231,7 @@ def process_song_folder(folder, config: Config, order=(0, 1)):
         return None
 
     for difficulty in ['Easy', 'Normal', 'Hard', 'Expert', 'ExpertPlus']:
-        beatmap_path = [x for x in files if difficulty in x]
+        beatmap_path = [x for x in files if f'{difficulty}.dat' in x]
         if beatmap_path:
             try:
                 beatmap_path = os.path.join(folder, beatmap_path[0])
