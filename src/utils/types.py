@@ -53,7 +53,8 @@ class BeatPreprocessingConfig:
 
 @dataclass
 class DatasetConfig:
-    beat_maps_folder: Path = ROOT_DIR / 'data/human_beatmaps/new_dataformat'
+    #beat_maps_folder: Path = ROOT_DIR / 'data/human_beatmaps/new_dataformat'
+    beat_maps_folder: Path = ROOT_DIR / 'data/human_beatmaps'
     storage_folder: Path = ROOT_DIR / 'data/new_datasets'
     action_word_model_path: Path = storage_folder / 'fasttext.model'  # gensim FastText.KeyedVectors class
     normalization_stats_path: Path = storage_folder / 'col_stats.pkl'
@@ -89,7 +90,8 @@ class DatasetConfig:
         if self._word_id_num_classes > 0:
             return self._word_id_num_classes
         if self.action_word_model_path.exists():
-            self._word_id_num_classes = len(gensim.models.KeyedVectors.load(str(self.action_word_model_path)).vocab) + 2
+            #self._word_id_num_classes = len(gensim.models.KeyedVectors.load(str(self.action_word_model_path)).vocab) + 2
+            self._word_id_num_classes = len(gensim.models.KeyedVectors.load(str(self.action_word_model_path)).key_to_index) + 2
         return self._word_id_num_classes
 
 
